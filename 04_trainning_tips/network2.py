@@ -44,15 +44,17 @@ class Network2:
     
     def evaluate(self, x_test, t_test):
         test_acc = self.accuracy(x_test, t_test)
-        print("Test accuracy={0}".format(test_acc))
+        
+        return test_acc
 
     def train(self, x_train, t_train, x_test, t_test):
         batch_size = 128
-        epoches = 20
+        epoches = 5
         train_size = x_train.shape[0]
         learning_rate = 0.1
         train_errors = []
         train_acc_list = []
+        test_acc_list = []
         iter_per_epoch = int(math.ceil(train_size / batch_size))
         for epoch in range(1, epoches + 1):
             print("Epoch {0}/{1}".format(epoch, epoches))
@@ -65,19 +67,22 @@ class Network2:
                 loss = self.loss(t_batch)
                 train_errors.append(loss)
                 self.backward_pass(learning_rate)
-            train_acc = self.accuracy(x_train, t_train)
-            train_acc_list.append(train_acc)
-            print("Train accuracy={0}".format(train_acc))
-            self.evaluate(x_test, t_test)
-        return train_errors
+                train_acc = self.accuracy(x_train, t_train)
+                test_acc = self.evaluate(x_test, t_test)
+                print("Train accuracy={0}".format(train_acc))
+                print("Test accuracy={0}".format(test_acc))
+                train_acc_list.append(train_acc)
+                test_acc_list.append(test_acc)
+        return train_errors, train_acc_list, test_acc_list
         
-    def plot_error(self, train_errors):
-        n = len(train_errors)
-        training, = plt.plot(range(n), train_errors, label="Training Error")
-        plt.legend(handles=[training])
-        plt.title("Error Plot")
-        plt.ylabel('Error')
-        plt.xlabel('Iterations')
+    def plot_accuracy(self, train_acc, test_acc):
+        n = len(train_acc)
+        plt.plot(range(n), train_acc, label="train")
+        plt.plot(range(n), test_acc, label="test")
+        plt.legend(loc='lower right')
+        plt.title("Overfit")
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
         plt.show()
 
     def show_failures(self, x_test, t_test):
@@ -102,19 +107,22 @@ class Network2:
 (x_train, t_train), (x_test, t_test) = load_mnist()
 options = {
     'weight_decay_lambda': 0,
-    'learning_rate': 0.001, 
+    'learning_rate': 0.01, 
     'beta1': 0.9,
     'beta2': 0.999
 }
+overfitmask = np.random.choice(x_train.shape[0], 300)
+x_train = x_train[overfitmask]
+t_train = t_train[overfitmask]
 network = Network2()
-network.add(Dense(784, 50, options, 'adam', 'he'))
+network.add(Dense(784, 50, options, 'sgd', 'he'))
 network.add(Relu())
-network.add(Dense(50, 10, options, 'adam', 'xavier'))
+network.add(Dense(50, 10, options, 'sgd', 'xavier'))
 network.add(SoftmaxWithLoss())
 
-errors = network.train(x_train, t_train, x_test, t_test)
-network.plot_error(errors)
-network.evaluate(x_test, t_test)
+errors, train_acc, test_acc = network.train(x_train, t_train, x_test, t_test)
+network.plot_accuracy(train_acc, test_acc)
+# network.evaluate(x_test, t_test)
 network.show_failures(x_test, t_test)
 
 
